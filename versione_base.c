@@ -39,7 +39,7 @@ at each iteration we remove a seam, so the width of the image is reduced by 1
 but we keep the same 2d array, so we need to ignore some pixels to the right
 this is why we have the to_ignore_pixls parameter
 */
-int *find_min_seam(unsigned char *img, int** brightness, int width, int height, int channels, int to_ignore_pixls){
+void find_min_seam(unsigned char *img, int** brightness, int width, int height, int channels, int to_ignore_pixls, int *seam){
     // this matrix contains in position (i,j) the minimum path weight from anywhere on top to the (i,j) pixel
     int **M = malloc(sizeof(int*) * height);
     // this matrix contains in position (i,j) the predecessor of that pixel in the min path (-1 left top, 0 top, 1 right top)
@@ -63,7 +63,6 @@ int *find_min_seam(unsigned char *img, int** brightness, int width, int height, 
     }
 
     // backtrack
-    int *seam = malloc(sizeof(int) * height);
     seam[height-1] = min_i(M[height-1], width);
     for (int i=height-2; i>=0; i--){
         seam[i] = seam[i+1] + P[i+1][seam[i+1]];
@@ -71,8 +70,6 @@ int *find_min_seam(unsigned char *img, int** brightness, int width, int height, 
 
     free(M);
     free(P);
-
-    return seam;
 }
 
 /*
@@ -101,6 +98,7 @@ int main(int argc, char **argv){
     int index; // utility variable
     // image info
     int width, height, channels;
+    int *min_seam;
 
     char filename[100];
     if (argc < 3) { printf("Usage: ./seam_carver <image_path> <number of seams to remove>\n"); return 1; }
@@ -124,9 +122,10 @@ int main(int argc, char **argv){
     }
 
     // remove N seams
+    min_seam = malloc(sizeof(int) * height);
     for (int n=0; n<N; n++){
         // find min seam
-        int *min_seam = find_min_seam(img, brightness, width, height, channels, n);
+        find_min_seam(img, brightness, width, height, channels, n, min_seam);
         
         // write_seam_image(img, width, height, channels, min_seam, n, filename, N);
 
@@ -166,13 +165,14 @@ int main(int argc, char **argv){
         printf("Image saved successfully\n");
     } else { printf("Failed to save the image\n"); }
 
-    // Free the memory allocated for the image
+    // Free the memory allocated
     stbi_image_free(img);
     stbi_image_free(new_img);
     for (int i=0; i<height; i++){
         free(brightness[i]);
     }
     free(brightness);
+    free(min_seam);
 
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
