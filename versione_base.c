@@ -39,30 +39,18 @@ at each iteration we remove a seam, so the width of the image is reduced by 1
 but we keep the same 2d array, so we need to ignore some pixels to the right
 this is why we have the to_ignore_pixls parameter
 */
-int *find_min_seam(unsigned char *img, int width, int height, int channels, int to_ignore_pixls){
+int *find_min_seam(unsigned char *img, int** brightness, int width, int height, int channels, int to_ignore_pixls){
     // this matrix contains in position (i,j) the minimum path weight from anywhere on top to the (i,j) pixel
-    int **M;
+    int **M = malloc(sizeof(int*) * height);
     // this matrix contains in position (i,j) the predecessor of that pixel in the min path (-1 left top, 0 top, 1 right top)
-    int **P;
-    // this matrix contains the brightness of the image
-    int **brightness;
+    int **P = malloc(sizeof(int*) * height);
 
-    brightness = malloc(sizeof(int*) * height);
-    M = malloc(sizeof(int*) * height);
-    P = malloc(sizeof(int*) * height);
-    int index = 0;
     for (int i=0; i<height; i++){
-        brightness[i] = malloc(sizeof(int) * width);
         M[i] = malloc(sizeof(int) * width);
         P[i] = malloc(sizeof(int) * width);
-
-        index = i * (width + to_ignore_pixls) * channels; // Note (1)
-        for (int j=0; j<width; j++){
-            brightness[i][j] = img[index] + img[index+1] + img[index+2];
-            index += channels;
-        }
-
+        
         if (i==0){ continue; } // skip first row
+
         int options[3];
         for (int j=0; j<width; j++){
             options[0] = j==0 ? INT32_MAX : M[i-1][j-1] + abs(brightness[i-1][j-1] - brightness[i][j]);
@@ -80,6 +68,9 @@ int *find_min_seam(unsigned char *img, int width, int height, int channels, int 
     for (int i=height-2; i>=0; i--){
         seam[i] = seam[i+1] + P[i+1][seam[i+1]];
     }
+
+    free(M);
+    free(P);
 
     return seam;
 }
@@ -106,34 +97,48 @@ void write_seam_image(unsigned char *img, int width, int height, int channels, i
 
 int main(int argc, char **argv){
     clock_t begin = clock();
+    
+    int index; // utility variable
     // image info
     int width, height, channels;
 
     char filename[100];
-    if (argc < 2) { printf("Usage: ./seam_carver <image_path> <number of seams to remove>\n"); return 1; }
+    if (argc < 3) { printf("Usage: ./seam_carver <image_path> <number of seams to remove>\n"); return 1; }
     strcpy(filename, argv[1]);
     int N = atoi(argv[2]);
 
     // Load the image using stbi_load
     unsigned char *img = stbi_load(filename, &width, &height, &channels, 0);
     if (img == NULL) { printf("Error in loading the image\n"); return 1; }
-    printf("Loaded image with a width of %dpx, a height of %dpx and %d channels\n", width, height, channels);
-    
+    printf("Image loaded successfully\n");
+
+    // create a 2d array of brightness values
+    int **brightness = malloc(sizeof(int*) * height);
+    index = 0;
+    for (int i=0; i<height; i++){
+        brightness[i] = malloc(sizeof(int) * width);
+        for (int j=0; j<width; j++){
+            brightness[i][j] = img[index] + img[index+1] + img[index+2];
+            index += channels;
+        }
+    }
+
     // remove N seams
-    int index;
     for (int n=0; n<N; n++){
         // find min seam
-        int *min_seam = find_min_seam(img, width, height, channels, n);
+        int *min_seam = find_min_seam(img, brightness, width, height, channels, n);
         
         // write_seam_image(img, width, height, channels, min_seam, n, filename, N);
 
-        // remove seam
+        // remove seam from image and brightness array
         for (int i=0; i<height; i++){
-            index = (i * (width + n) + min_seam[i]) * channels; // Note (1)
-            for (; index<((i+1)*(width + n) - 1) * channels; index+=channels){
+            for(int j=min_seam[i]; j<width-1; j++){
+                index = (i * (width + n) + j) * channels; // Note (1)
                 img[index] = img[index + channels];
                 img[index + 1] = img[index + 1 + channels];
                 img[index + 2] = img[index + 2 + channels];
+
+                brightness[i][j] = brightness[i][j+1];
             }
         }
         width--;
@@ -163,6 +168,11 @@ int main(int argc, char **argv){
 
     // Free the memory allocated for the image
     stbi_image_free(img);
+    stbi_image_free(new_img);
+    for (int i=0; i<height; i++){
+        free(brightness[i]);
+    }
+    free(brightness);
 
     clock_t end = clock();
     double time_spent = (double)(end - begin) / CLOCKS_PER_SEC;
