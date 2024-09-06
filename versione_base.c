@@ -121,15 +121,31 @@ int main(int argc, char **argv){
         }
     }
 
+    // calculate the energy function
+    int **energy = malloc(sizeof(int*) * height);
+    int dx_left, dx_right, dy_up, dy_down;
+    index = 0;
+    for (int i=0; i<height; i++){
+        energy[i] = malloc(sizeof(int) * width);
+        for (int j=0; j<width; j++){
+            dx_left = j==0 ? 0 : brightness[i][j] - brightness[i][j-1];
+            dx_right = j==width-1 ? 0 : brightness[i][j+1] - brightness[i][j];
+            dy_up = i==0 ? 0 : brightness[i][j] - brightness[i-1][j];
+            dy_down = i==height-1 ? 0 : brightness[i+1][j] - brightness[i][j];
+            energy[i][j] = abs((dx_left + dx_right) / 2) + abs((dy_up + dy_down) / 2);
+            index += channels;
+        }
+    }
+
     // remove N seams
     min_seam = malloc(sizeof(int) * height);
     for (int n=0; n<N; n++){
         // find min seam
-        find_min_seam(img, brightness, width, height, channels, n, min_seam);
+        find_min_seam(img, energy, width, height, channels, n, min_seam);
         
         // write_seam_image(img, width, height, channels, min_seam, n, filename, N);
 
-        // remove seam from image and brightness array
+        // remove seam from image and energy array
         for (int i=0; i<height; i++){
             for(int j=min_seam[i]; j<width-1; j++){
                 index = (i * (width + n) + j) * channels; // Note (1)
@@ -137,7 +153,7 @@ int main(int argc, char **argv){
                 img[index + 1] = img[index + 1 + channels];
                 img[index + 2] = img[index + 2 + channels];
 
-                brightness[i][j] = brightness[i][j+1];
+                energy[i][j] = energy[i][j+1];
             }
         }
         width--;
