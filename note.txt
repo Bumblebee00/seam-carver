@@ -1,0 +1,12 @@
+~/Desktop/seam carving (main ✗) ./seam_carver image.png 800                
+Loaded image with a width of 928px, a height of 580px and 4 channels
+Image saved successfully
+Execution time: 7.527904
+~/Desktop/seam carving (main ✗) ./seam_carver image.png 500
+Loaded image with a width of 928px, a height of 580px and 4 channels
+Image saved successfully
+Execution time: 5.928877
+~/Desktop/seam carving (main ✗) ./seam_carver image.png 400
+Loaded image with a width of 928px, a height of 580px and 4 channels
+Image saved successfully
+Execution time: 5.016959
